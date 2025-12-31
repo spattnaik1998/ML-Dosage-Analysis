@@ -14,6 +14,12 @@ from .llm_validator import (
     LLMValidationResult
 )
 from .fallback_extractor import FallbackExtractor, HybridExtractor
+from .normalizer import (
+    FeatureNormalizer,
+    NormalizationResult,
+    NormalizationIssue,
+    ValidationSeverity
+)
 
 __all__ = [
     "LLMExtractor",
@@ -30,5 +36,9 @@ __all__ = [
     "ValidationError",
     "LLMValidationResult",
     "FallbackExtractor",
-    "HybridExtractor"
+    "HybridExtractor",
+    "FeatureNormalizer",
+    "NormalizationResult",
+    "NormalizationIssue",
+    "ValidationSeverity"
 ]
