@@ -20,6 +20,18 @@ from .normalizer import (
     NormalizationIssue,
     ValidationSeverity
 )
+from .inference import (
+    ModelInferenceEngine,
+    InferenceService,
+    ModelMetadata,
+    PredictionResult,
+    InferenceError,
+    ModelLoadError,
+    InputValidationError,
+    PredictionError,
+    load_model,
+    predict_duration
+)
 
 __all__ = [
     "LLMExtractor",
@@ -40,5 +52,15 @@ __all__ = [
     "FeatureNormalizer",
     "NormalizationResult",
     "NormalizationIssue",
-    "ValidationSeverity"
+    "ValidationSeverity",
+    "ModelInferenceEngine",
+    "InferenceService",
+    "ModelMetadata",
+    "PredictionResult",
+    "InferenceError",
+    "ModelLoadError",
+    "InputValidationError",
+    "PredictionError",
+    "load_model",
+    "predict_duration"
 ]
