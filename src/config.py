@@ -134,24 +134,26 @@ class Settings(BaseSettings):
     @field_validator("primary_llm_provider")
     @classmethod
     def validate_primary_provider_key(cls, v: str, info) -> str:
-        """Validate that API key exists for primary provider"""
+        """Validate that API key exists for primary provider (warning only)"""
+        import warnings
         # Note: info.data contains the values parsed so far
         if v == "openai" and not os.getenv("OPENAI_API_KEY"):
-            raise ValueError(
-                "OPENAI_API_KEY must be set when using openai as primary provider"
+            warnings.warn(
+                "OPENAI_API_KEY not found. LLM extraction will not work until API key is configured."
             )
         if v == "gemini" and not os.getenv("GOOGLE_API_KEY"):
-            raise ValueError(
-                "GOOGLE_API_KEY must be set when using gemini as primary provider"
+            warnings.warn(
+                "GOOGLE_API_KEY not found. LLM extraction will not work until API key is configured."
             )
         return v
 
     @field_validator("model_path")
     @classmethod
     def validate_model_path(cls, v: str) -> str:
-        """Validate that model file exists"""
+        """Validate that model file exists (warning only)"""
         if not os.path.exists(v):
-            raise ValueError(f"Model file not found at path: {v}")
+            import warnings
+            warnings.warn(f"Model file not found at path: {v}. Model loading will fail until file is available.")
         return v
 
     @property
