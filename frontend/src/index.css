@@ -1,47 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-feature-settings: "liga" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-lg shadow-md p-6 border border-gray-200;
+    @apply bg-white rounded-xl shadow-medical p-6 border border-gray-100 transition-shadow hover:shadow-medical-lg;
   }
 
   .card-header {
-    @apply text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
+    @apply text-lg font-semibold text-hospital-900 mb-4 pb-3 border-b border-gray-100;
   }
 
   .btn-primary {
-    @apply bg-clinical-600 hover:bg-clinical-700 text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-hospital-600 hover:bg-hospital-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all duration-200;
+  }
+
+  .btn-upload {
+    @apply border-2 border-dashed border-hospital-300 hover:border-hospital-500 bg-hospital-50 hover:bg-hospital-100 text-hospital-700 font-medium py-6 px-8 rounded-xl transition-all duration-200 cursor-pointer;
   }
 
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase;
   }
 
   .badge-success {
-    @apply bg-green-100 text-green-800;
+    @apply bg-medical-100 text-medical-800 border border-medical-200;
   }
 
   .badge-warning {
-    @apply bg-yellow-100 text-yellow-800;
+    @apply bg-amber-100 text-amber-800 border border-amber-200;
   }
 
   .badge-error {
-    @apply bg-red-100 text-red-800;
+    @apply bg-care-100 text-care-800 border border-care-200;
   }
 
   .badge-info {
-    @apply bg-blue-100 text-blue-800;
+    @apply bg-hospital-100 text-hospital-800 border border-hospital-200;
+  }
+
+  .medical-gradient {
+    @apply bg-gradient-to-br from-hospital-600 via-hospital-700 to-hospital-900;
+  }
+
+  .hospital-header {
+    @apply bg-white border-b border-gray-100 shadow-sm;
   }
 }

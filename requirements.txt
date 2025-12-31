@@ -17,6 +17,12 @@ fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 python-multipart>=0.0.6
 
+# File parsing
+PyPDF2>=3.0.0
+python-docx>=1.1.0
+python-magic>=0.4.27  # File type detection
+openpyxl>=3.1.0  # Excel files
+
 # Async processing
 celery>=5.3.0
 redis>=5.0.0
