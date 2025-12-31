@@ -3,6 +3,14 @@
 .env.local
 .env.*.local
 
+# Frontend (Node.js / React)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/*.local
+frontend/package-lock.json
+
 # Python
 __pycache__/
 *.py[cod]

@@ -126,14 +126,33 @@ app.add_middleware(
 settings = get_settings()
 
 # Initialize extractors
+hybrid_extractor = None
+extractor_error = None
+llm_extractor = None
+
 try:
-    hybrid_extractor = HybridExtractor(
+    # First create the LLM extractor
+    from src.services.extractor import LLMExtractor
+    llm_extractor = LLMExtractor(
         primary_provider=settings.primary_llm_provider,
         fallback_provider="gemini" if settings.primary_llm_provider == "openai" else "openai"
     )
+
+    # Then create the hybrid extractor
+    hybrid_extractor = HybridExtractor(
+        llm_extractor=llm_extractor,
+        confidence_threshold=0.6,
+        use_fallback_for_missing=True
+    )
+    print(f"[OK] LLM extractors initialized (primary: {settings.primary_llm_provider})")
 except Exception as e:
-    print(f"Warning: Could not initialize LLM extractors: {e}")
+    extractor_error = str(e)
+    print(f"[WARNING] Could not initialize LLM extractors: {e}")
+    print(f"  Make sure API keys are set in .env file:")
+    print(f"  - OPENAI_API_KEY (for OpenAI GPT-4)")
+    print(f"  - GOOGLE_API_KEY (for Google Gemini)")
     hybrid_extractor = None
+    llm_extractor = None
 
 # Initialize validator
 llm_validator = LLMResponseValidator()
@@ -146,11 +165,11 @@ try:
     model_path = Path(settings.model_path)
     if model_path.exists():
         InferenceService.initialize(str(model_path))
-        print(f"✓ Model loaded from {model_path}")
+        print(f"[OK] Model loaded from {model_path}")
     else:
-        print(f"Warning: Model not found at {model_path}")
+        print(f"[WARNING] Model not found at {model_path}")
 except Exception as e:
-    print(f"Warning: Could not load model: {e}")
+    print(f"[WARNING] Could not load model: {e}")
 
 
 # ============================================================================
@@ -160,11 +179,17 @@ except Exception as e:
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
+    health_status = {
         "status": "healthy",
         "model_loaded": InferenceService._engine is not None if hasattr(InferenceService, '_engine') else False,
         "llm_available": hybrid_extractor is not None
     }
+
+    if hybrid_extractor is None and extractor_error:
+        health_status["llm_error"] = extractor_error
+        health_status["status"] = "degraded"
+
+    return health_status
 
 
 # ============================================================================
@@ -221,7 +246,7 @@ async def predict_duration(request: PredictionRequest):
     try:
         normalization_result = normalizer.normalize(raw_features)
 
-        if not normalization_result.success:
+        if not normalization_result.is_valid:
             # Check for critical errors
             critical_errors = [
                 issue for issue in normalization_result.issues
@@ -310,7 +335,7 @@ async def predict_duration(request: PredictionRequest):
             severity=issue.severity.value,
             field=issue.field,
             message=issue.message,
-            repaired=issue.auto_repaired
+            repaired=bool(issue.rule_applied)  # If rule was applied, it was repaired
         ))
 
         # Flag for human review if critical issues
@@ -424,16 +449,25 @@ async def predict_from_file(file: UploadFile = File(...)):
     # ========================================================================
 
     try:
-        if hybrid_extractor is None:
+        if hybrid_extractor is None or llm_extractor is None:
+            error_detail = "LLM extraction service not available."
+            if extractor_error:
+                error_detail += f" Initialization error: {extractor_error}"
+            error_detail += " Please configure OPENAI_API_KEY or GOOGLE_API_KEY in your .env file."
+
             raise HTTPException(
                 status_code=503,
-                detail="LLM extraction service not available. Check API keys."
+                detail=ErrorResponse(
+                    error="LLM Service Unavailable",
+                    detail=error_detail,
+                    stage="initialization"
+                ).model_dump()
             )
 
         # Use multi-case prompt
         if settings.primary_llm_provider == "openai":
             messages = MultiCasePromptBuilder.build_openai_messages(document_text)
-            response = hybrid_extractor.llm_extractor._openai_client.chat.completions.create(
+            response = llm_extractor._openai_client.chat.completions.create(
                 model=settings.openai_model,
                 messages=messages,
                 temperature=0.0,
@@ -442,7 +476,7 @@ async def predict_from_file(file: UploadFile = File(...)):
             result_text = response.choices[0].message.content
         else:  # gemini
             prompt = MultiCasePromptBuilder.build_gemini_prompt(document_text)
-            response = hybrid_extractor.llm_extractor._gemini_model.generate_content(
+            response = llm_extractor._gemini_model.generate_content(
                 prompt,
                 generation_config={"temperature": 0.0}
             )
@@ -503,7 +537,7 @@ async def predict_from_file(file: UploadFile = File(...)):
             # Normalize
             normalization_result = normalizer.normalize(raw_features)
 
-            if not normalization_result.success:
+            if not normalization_result.is_valid:
                 critical_errors = [
                     issue for issue in normalization_result.issues
                     if issue.severity == ValidationSeverity.ERROR
@@ -566,7 +600,7 @@ async def predict_from_file(file: UploadFile = File(...)):
                     severity=issue.severity.value,
                     field=issue.field,
                     message=issue.message,
-                    repaired=issue.auto_repaired
+                    repaired=bool(issue.rule_applied)  # If rule was applied, it was repaired
                 ))
                 if issue.severity in [ValidationSeverity.ERROR, ValidationSeverity.WARNING]:
                     requires_human_review = True
