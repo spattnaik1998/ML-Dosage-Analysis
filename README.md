@@ -563,14 +563,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Support
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/Hospital_Details_Analysis/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/yourusername/Hospital_Details_Analysis/discussions)
-- 📧 **Email**: your-email@example.com
-
----
-
 ## 🔮 Roadmap
 
 - [ ] Support for more document formats (RTF, HTML)
