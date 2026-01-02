@@ -27,16 +27,31 @@ SYSTEM_PROMPT = """You are a medical data extraction specialist. Your task is to
 
 3. **EXACT EVIDENCE**:
    - For each field, include the exact text span from the input that supports your extraction
-   - Evidence must be a verbatim quote from the input text
+   - Evidence must be a verbatim quote from the input text (copy it exactly as it appears)
+   - Evidence should include enough context to validate the extraction
+   - If multiple mentions exist, use the clearest/most explicit one
    - If no evidence exists, set evidence to null
 
-4. **CONFIDENCE SCORING**:
-   - 1.0: Explicit and unambiguous (e.g., "Patient is 45 years old")
-   - 0.8-0.9: Clear but requires minor interpretation (e.g., "45yo male")
-   - 0.6-0.7: Ambiguous or requires inference from context
-   - 0.4-0.5: Highly uncertain, multiple interpretations possible
-   - 0.0-0.3: Guessing or no clear evidence
-   - If value is null, confidence must be 0.0
+4. **CONFIDENCE SCORING** (CRITICAL - Be precise):
+   - 1.0: Explicit and completely unambiguous
+     * Example: "Patient is 45 years old" → age: 45
+     * Example: "prescribed ceftriaxone 1g IV" → dosage: 1.0g, route: IV
+   - 0.9-0.95: Very clear with standard abbreviations
+     * Example: "45yo M" → age: 45, gender: male
+     * Example: "500mg PO BD" → dosage: 0.5g, route: oral, frequency: BD
+   - 0.8-0.85: Clear but requires medical knowledge/interpretation
+     * Example: "gentamicin 80 IV" → dosage: 0.08g (assuming mg)
+     * Example: "q12h" → frequency: BD
+   - 0.6-0.7: Ambiguous or requires significant inference
+     * Example: "Elderly patient" → age: null (cannot infer specific age)
+     * Example: "usual dose" → dosage: null (not specific)
+   - 0.4-0.5: Multiple valid interpretations possible
+     * Example: "80" without units → could be 80mg, 80g, unclear
+   - 0.0-0.3: Pure guessing or no real evidence
+     * Only use if making educated guess from very weak signals
+   - 0.0: Field not mentioned at all (value must be null)
+
+   **IMPORTANT**: Be conservative with confidence. When in doubt, use lower confidence.
 
 5. **DOSAGE UNIT CONVERSION**:
    - Convert all dosages to grams
@@ -89,36 +104,92 @@ Return JSON matching this exact structure:
 
 ## FIELD DEFINITIONS
 
-**age**: Patient age in years (numeric)
-- Extract from: "X years old", "Xyo", "age X", etc.
+**age**: Patient age in years (numeric value, float or null)
+- Extract from: "X years old", "Xyo", "X-year-old", "age X", "aged X"
+- Accept abbreviations: "yo", "y/o", "yr", "yrs"
+- Do NOT extract from vague terms: "elderly", "young adult", "middle-aged"
+  * If only vague term: set value=null, confidence=0.0
+  * Can include vague term in raw_value with low confidence if useful
+- Return null if not mentioned or not specific enough
+
+**dosage**: Medication dose in GRAMS (numeric value converted, float or null)
+- Extract from: "Xg", "Xmg", "Xmcg", "X grams", "X milligrams"
+- ALWAYS convert to grams: 1000mg = 1g, 1,000,000mcg = 1g
+- Handle missing units:
+  * For common antibiotics (gentamicin, vancomycin), assume mg if units missing
+  * Document assumption in unit_conversion field
+  * Lower confidence to 0.7-0.8 for assumed units
+- If multiple doses mentioned (e.g., "500mg day 1, 250mg days 2-5"):
+  * Extract the INITIAL/PRIMARY dose (500mg in this case)
+  * Note in raw_value if helpful
+- Return null if dosage not mentioned or too ambiguous
+
+**gender**: Patient biological sex (string or null)
+- Values: "male" or "female" ONLY (lowercase)
+- Extract from:
+  * Explicit: "male", "female", "man", "woman", "boy", "girl"
+  * Abbreviations: "M", "F", "m", "f"
+  * Pronouns: "he/him/his" → male, "she/her" → female
+  * Titles: "Mr." → male, "Mrs./Ms./Miss" → female
+- If both genders mentioned (e.g., in multi-patient text): Return null
+- Return null if not mentioned or ambiguous
+
+**route**: Administration route (string or null)
+- Values: "IV", "oral", or "other" ONLY
+- "IV" includes: IV, intravenous, intravenously, i.v.
+- "oral" includes: oral, PO, by mouth, orally, per os, p.o.
+- "other" includes: IM (intramuscular), SC/SQ (subcutaneous), topical, rectal, etc.
+  * For "other", include actual route in raw_value (e.g., raw_value: "IM")
 - Return null if not mentioned
 
-**dosage**: Medication dose in GRAMS (converted)
-- Extract from: "Xg", "Xmg", "X grams", dose amounts
-- Convert to grams using conversion rules above
+**frequency**: Dosing frequency (string or null)
+- Values: "OD", "BD", "TDS", "QID", or "other" ONLY
+- "OD" (once daily): "once daily", "once a day", "once per day", "OD", "QD", "q24h", "daily"
+- "BD" (twice daily): "twice daily", "twice a day", "BD", "BID", "q12h"
+- "TDS" (three times daily): "three times daily", "TDS", "TID", "q8h"
+- "QID" (four times daily): "four times daily", "QID", "q6h"
+- "other": any other frequency (q4h, q48h, PRN, etc.)
+  * For "other", include actual frequency in raw_value
 - Return null if not mentioned
 
-**gender**: Patient biological sex
-- Values: "male" or "female" only
-- Extract from: "male", "female", "M", "F", gender pronouns
-- Return null if not mentioned
+## COMMON EDGE CASES AND HOW TO HANDLE THEM
 
-**route**: Administration route
-- Values: "IV" (intravenous), "oral" (by mouth), "other" (any other route)
-- Extract from: "IV", "intravenous", "oral", "PO", "intramuscular", etc.
-- Return null if not mentioned
+1. **Vague Age Terms** ("elderly", "young", "middle-aged"):
+   - Set value=null, confidence=0.0
+   - Can mention in raw_value but don't try to convert to number
 
-**frequency**: Dosing frequency
-- Values: "OD" (once daily), "BD" (twice daily), "TDS" (three times daily), "QID" (four times daily), "other"
-- Extract from: "once daily", "twice daily", "OD", "BD", "TDS", "QID", "q12h", etc.
-- Return null if not mentioned
+2. **Missing Dosage Units** ("gentamicin 80", "vancomycin 1"):
+   - For common antibiotics: assume mg (document in unit_conversion)
+   - Reduce confidence to 0.7-0.8
+   - If completely ambiguous: set null
+
+3. **Multiple Doses** ("500mg x 3 days, then 250mg x 4 days"):
+   - Extract INITIAL dose (500mg)
+   - Confidence remains high if initial dose is clear
+
+4. **Ambiguous Text** ("patient given medication"):
+   - Set all unspecified fields to null
+   - Don't hallucinate values
+
+5. **Medical Abbreviations** (Rx, Pt, w/, CAP, UTI):
+   - Rx = prescribed/treatment
+   - Pt = patient
+   - w/ = with
+   - These are contextual clues, use them but don't extract as values
+
+6. **Time-based Dosing** ("q12h", "q8h", "q6h"):
+   - q12h → BD (twice daily)
+   - q8h → TDS (three times daily)
+   - q6h → QID (four times daily)
+   - q24h → OD (once daily)
 
 ## DETERMINISTIC OUTPUT
 
 - Process text sequentially
 - Extract information in the order: age → dosage → gender → route → frequency
 - Do not randomize or vary extraction logic
-- Be consistent in interpretation across similar phrasings"""
+- Be consistent in interpretation across similar phrasings
+- Same input should always produce same output"""
 
 
 # ============================================================================
@@ -308,7 +379,7 @@ intravenously once per day.""",
                 "value": 0.08,
                 "raw_value": "80",
                 "evidence": "gentamicin 80",
-                "confidence": 0.7,
+                "confidence": 0.8,
                 "unit_conversion": "80mg (assumed) → 0.08g"
             },
             "gender": {
@@ -327,6 +398,80 @@ intravenously once per day.""",
                 "value": "OD",
                 "raw_value": "once per day",
                 "evidence": "once per day",
+                "confidence": 1.0
+            }
+        }
+    },
+    # Example 6: Very Sparse Information
+    {
+        "input": """Patient presented with respiratory infection. Treatment initiated per hospital protocol.""",
+        "output": {
+            "age": {
+                "value": None,
+                "raw_value": None,
+                "evidence": None,
+                "confidence": 0.0
+            },
+            "dosage": {
+                "value": None,
+                "raw_value": None,
+                "evidence": None,
+                "confidence": 0.0,
+                "unit_conversion": None
+            },
+            "gender": {
+                "value": None,
+                "raw_value": None,
+                "evidence": None,
+                "confidence": 0.0
+            },
+            "route": {
+                "value": None,
+                "raw_value": None,
+                "evidence": None,
+                "confidence": 0.0
+            },
+            "frequency": {
+                "value": None,
+                "raw_value": None,
+                "evidence": None,
+                "confidence": 0.0
+            }
+        }
+    },
+    # Example 7: Complex Medical Abbreviations
+    {
+        "input": """Pt: 35F w/ CAP. Rx: azithromycin 500mg PO OD day 1, then 250mg PO OD days 2-5. Vitals stable, O2 sat 96% RA.""",
+        "output": {
+            "age": {
+                "value": 35.0,
+                "raw_value": "35F",
+                "evidence": "Pt: 35F w/ CAP",
+                "confidence": 0.95
+            },
+            "dosage": {
+                "value": 0.5,
+                "raw_value": "500mg",
+                "evidence": "azithromycin 500mg PO OD day 1",
+                "confidence": 1.0,
+                "unit_conversion": "500mg → 0.5g"
+            },
+            "gender": {
+                "value": "female",
+                "raw_value": "F",
+                "evidence": "35F w/ CAP",
+                "confidence": 1.0
+            },
+            "route": {
+                "value": "oral",
+                "raw_value": "PO",
+                "evidence": "500mg PO OD",
+                "confidence": 1.0
+            },
+            "frequency": {
+                "value": "OD",
+                "raw_value": "OD",
+                "evidence": "500mg PO OD day 1",
                 "confidence": 1.0
             }
         }

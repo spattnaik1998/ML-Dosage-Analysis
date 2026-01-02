@@ -1,355 +1,590 @@
-# Hospital Treatment Duration Prediction Model
+# 🏥 Hospital Treatment Duration Prediction System
 
-## Overview
-This project contains a machine learning model that predicts the duration category of hospital antibiotic treatment based on patient and prescription characteristics. The model classifies treatment duration into three categories: `<5 days`, `5-10 days`, and `>10 days`.
+> **AI-powered clinical data extraction and treatment duration prediction system**
 
-## Model Details
-
-### Model Type
-**Decision Tree Classifier** (Scikit-learn)
-
-### Model File
-`best_dt_classifier_model.joblib`
-
-### Hyperparameters (Optimized via GridSearchCV)
-The model was tuned using GridSearchCV with 5-fold cross-validation and weighted F1-score as the optimization metric.
-
-**Best Parameters:**
-- **criterion**: `entropy` (information gain)
-- **max_depth**: `None` (nodes are expanded until all leaves are pure or contain less than min_samples_split samples)
-- **min_samples_split**: `2` (minimum number of samples required to split an internal node)
-- **min_samples_leaf**: `1` (minimum number of samples required to be at a leaf node)
-- **random_state**: `42` (for reproducibility)
-- **splitter**: `best` (best split at each node)
-
-### Model Performance
-- **Initial Model Accuracy**: 77.84%
-- **After Hyperparameter Tuning**: Optimized using weighted F1-score
-- **Evaluation Metrics**: Accuracy, Precision (weighted), Recall (weighted), F1-Score (weighted)
-
-## Dataset Information
-
-### Source
-`Hopsital Dataset.csv` - Hospital antibiotic prescription records
-
-### Original Columns
-- Age
-- Date of Data Entry
-- Gender
-- Diagnosis
-- Name of Drug
-- Dosage (gram)
-- Route (administration route)
-- Frequency (dosing frequency)
-- Duration (days)
-- Indication
-
-### Data Preprocessing
-1. **Cleaning**: Removed rows with placeholder values in Gender, Route, Frequency, and Duration columns
-2. **Target Creation**: Converted 'Duration (days)' into categorical bins
-3. **Numeric Conversion**:
-   - Age converted to numeric, missing values filled with median
-   - Dosage (gram) converted to numeric, missing values filled with median
-4. **One-Hot Encoding**: Categorical features encoded as binary variables
-5. **Train-Test Split**: 80% training, 20% testing with stratification
-
-## Model Features
-
-### Input Features (8 total)
-
-#### Numeric Features
-1. **Age** (float)
-   - Patient age in years
-   - Missing values imputed with median
-
-2. **Dosage (gram)** (float)
-   - Medication dosage in grams
-   - Missing values imputed with median
-
-#### Binary Features (One-Hot Encoded)
-
-3. **Gender_Male** (int: 0 or 1)
-   - 1 = Male
-   - 0 = Female
-
-4. **Route_IV** (int: 0 or 1)
-   - 1 = Intravenous administration
-   - 0 = Other route
-
-5. **Route_Oral** (int: 0 or 1)
-   - 1 = Oral administration
-   - 0 = Other route
-
-6. **Frequency_OD** (int: 0 or 1)
-   - 1 = Once Daily dosing
-   - 0 = Other frequency
-
-7. **Frequency_QID** (int: 0 or 1)
-   - 1 = Four times daily (Quarter In Die)
-   - 0 = Other frequency
-
-8. **Frequency_TDS** (int: 0 or 1)
-   - 1 = Three times daily (Ter Die Sumendum)
-   - 0 = Other frequency
-
-**Note**: Binary features are mutually exclusive within their category. For example:
-- If Route_IV = 0 and Route_Oral = 0, the route is "BD" (Twice Daily) or another unlisted route
-- If Frequency_OD = 0, Frequency_QID = 0, Frequency_TDS = 0, the frequency is "BD" (Twice Daily)
-
-### Output (Target Variable)
-
-**Duration_Category** (string) - Three possible classes:
-- `<5 days` - Treatment duration less than 5 days
-- `5-10 days` - Treatment duration between 5 and 10 days (exclusive upper bound)
-- `>10 days` - Treatment duration 10 days or more
-
-## Usage
-
-### Loading the Model
-
-```python
-import joblib
-
-# Load the trained model
-model = joblib.load('best_dt_classifier_model.joblib')
-```
-
-### Making Predictions
-
-```python
-import pandas as pd
-
-# Example: Prepare input data
-input_data = {
-    'Age': 60.0,
-    'Dosage (gram)': 0.5,
-    'Gender_Male': 1,        # Male patient
-    'Route_IV': 0,           # Not IV
-    'Route_Oral': 1,         # Oral route
-    'Frequency_OD': 1,       # Once daily
-    'Frequency_QID': 0,      # Not QID
-    'Frequency_TDS': 0       # Not TDS
-}
-
-# Convert to DataFrame (required format)
-input_df = pd.DataFrame([input_data])
-
-# Make prediction
-prediction = model.predict(input_df)
-print(f"Predicted Duration Category: {prediction[0]}")
-# Output: Predicted Duration Category: <5 days
-```
-
-### Input Data Validation
-
-Ensure your input data meets these requirements:
-1. All 8 features must be present
-2. Features must be in the exact order shown above
-3. Numeric features (Age, Dosage) must be non-negative numbers
-4. Binary features must be 0 or 1 (integers)
-5. Only one route should be selected (Route_IV or Route_Oral)
-6. Only one frequency should be selected (or none if frequency is BD)
-
-## API Integration
-
-### Flask API Example
-
-The project includes Flask API code for serving predictions via HTTP POST requests.
-
-#### Endpoint
-`POST /predict`
-
-#### Request Format
-```json
-{
-    "Age": 60,
-    "Dosage (gram)": 0.5,
-    "Gender_Male": 1,
-    "Route_IV": 0,
-    "Route_Oral": 1,
-    "Frequency_OD": 1,
-    "Frequency_QID": 0,
-    "Frequency_TDS": 0
-}
-```
-
-#### Response Format
-```json
-{
-    "prediction": "<5 days"
-}
-```
-
-#### Error Responses
-- **400 Bad Request**: Missing required fields or invalid JSON
-- **500 Internal Server Error**: Model prediction failure
-
-### Running the API Locally
-
-1. Save the Flask application code to `app.py`
-2. Ensure the model file is in the same directory
-3. Set environment variable:
-   ```bash
-   # Linux/Mac
-   export FLASK_APP=app.py
-
-   # Windows
-   set FLASK_APP=app.py
-   ```
-4. Run the server:
-   ```bash
-   flask run
-   ```
-5. The API will be available at `http://127.0.0.1:5000/`
-
-### Testing the API
-
-**Using curl:**
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{
-    "Age": 60,
-    "Dosage (gram)": 0.5,
-    "Gender_Male": 1,
-    "Route_IV": 0,
-    "Route_Oral": 1,
-    "Frequency_OD": 1,
-    "Frequency_QID": 0,
-    "Frequency_TDS": 0
-  }' \
-  http://127.0.0.1:5000/predict
-```
-
-**Using Python requests:**
-```python
-import requests
-
-url = 'http://127.0.0.1:5000/predict'
-data = {
-    "Age": 60,
-    "Dosage (gram)": 0.5,
-    "Gender_Male": 1,
-    "Route_IV": 0,
-    "Route_Oral": 1,
-    "Frequency_OD": 1,
-    "Frequency_QID": 0,
-    "Frequency_TDS": 0
-}
-
-response = requests.post(url, json=data)
-result = response.json()
-print(result)
-```
-
-## Feature Engineering Details
-
-### Categorical Encoding Strategy
-The model uses one-hot encoding with `drop_first=True` for categorical variables to avoid multicollinearity:
-
-**Gender** (original values: Male, Female)
-- Encoded as: `Gender_Male` (1 for Male, 0 for Female)
-
-**Route** (original values: IV, Oral, BD)
-- Encoded as: `Route_IV`, `Route_Oral`
-- BD (Twice Daily) represented when both are 0
-
-**Frequency** (original values: OD, BD, TDS, QID)
-- Encoded as: `Frequency_OD`, `Frequency_QID`, `Frequency_TDS`
-- BD (Twice Daily) represented when all three are 0
-
-### Target Variable Creation
-Duration categories created using `pd.cut()` with the following bins:
-- `<5 days`: [0, 5)
-- `5-10 days`: [5, 10)
-- `>10 days`: [10, max]
-
-## Dependencies
-
-```
-pandas
-scikit-learn (v1.6.1 or compatible)
-joblib
-flask (for API)
-seaborn (for visualization during training)
-matplotlib (for visualization during training)
-```
-
-## Model Training Information
-
-### Training Process
-1. Data loaded from CSV and cleaned
-2. Features engineered (numeric conversion, one-hot encoding)
-3. Train-test split (80-20) with stratification
-4. Hyperparameter tuning via GridSearchCV:
-   - 5-fold cross-validation
-   - Parameter grid search over max_depth, min_samples_split, min_samples_leaf, criterion
-   - Scoring metric: weighted F1-score
-   - Parallel processing enabled (n_jobs=-1)
-5. Best model selected and saved
-
-### GridSearchCV Parameter Grid
-```python
-{
-    'max_depth': [3, 5, 7, 10, None],
-    'min_samples_split': [2, 5, 10],
-    'min_samples_leaf': [1, 2, 4],
-    'criterion': ['gini', 'entropy']
-}
-```
-
-## Deployment Considerations
-
-### For Production Use
-1. **Containerization**: Use Docker for consistent environments
-2. **Web Server**: Replace Flask development server with Gunicorn or uWSGI
-3. **Security**:
-   - Implement API authentication (API keys, OAuth)
-   - Add rate limiting
-   - Validate and sanitize all inputs
-4. **Monitoring**:
-   - Log all predictions and errors
-   - Monitor model performance metrics
-   - Set up alerts for anomalies
-5. **Scalability**:
-   - Consider cloud deployment (AWS, GCP, Azure)
-   - Use load balancers for high traffic
-   - Cache frequent predictions if applicable
-6. **Model Versioning**:
-   - Track model versions
-   - Implement A/B testing for model updates
-   - Maintain rollback capabilities
-
-## Files in This Project
-
-- `best_dt_classifier_model.joblib` - Trained and optimized Decision Tree model
-- `decision_tree_classifier.py` - Complete training pipeline and API code
-- `Hopsital Dataset.csv` - Original training dataset
-- `README.md` - This documentation file
-
-## Limitations and Considerations
-
-1. **Model Scope**: Predictions are based on limited features and may not capture all clinical factors affecting treatment duration
-2. **Data Quality**: Model performance depends on the quality and representativeness of training data
-3. **Class Imbalance**: Check training data for class imbalance which may affect predictions
-4. **Clinical Validation**: Model outputs should be validated by healthcare professionals before clinical use
-5. **Scikit-learn Version**: Model was trained with scikit-learn 1.6.1; version compatibility warnings may appear with different versions
-
-## Future Improvements
-
-1. Feature expansion (e.g., diagnosis, drug name, patient comorbidities)
-2. Ensemble methods (Random Forest, Gradient Boosting)
-3. Feature importance analysis
-4. Cross-validation with larger datasets
-5. Integration with hospital information systems
-6. Real-time model retraining pipeline
-
-## Contact and Support
-
-For questions about model implementation or integration into applications, refer to the original training code in `decision_tree_classifier.py` for detailed preprocessing and prediction logic.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://reactjs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-**Model Version**: 1.0
-**Last Updated**: 2024
-**Training Framework**: Scikit-learn
-**Model Type**: Classification (Multi-class)
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [System Architecture](#system-architecture)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [API Documentation](#api-documentation)
+- [Project Structure](#project-structure)
+- [Recent Updates](#recent-updates)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## 🎯 Overview
+
+This system combines **Large Language Models (LLMs)** with **Machine Learning** to automatically extract clinical information from unstructured medical documents (PDFs, DOCX) and predict antibiotic treatment duration categories.
+
+### The Problem It Solves
+
+Healthcare professionals often need to:
+- ✅ Extract structured data from unstructured clinical documents
+- ✅ Handle documents containing single or multiple case studies
+- ✅ Predict treatment duration based on patient demographics and medication details
+- ✅ Validate and normalize extracted data for reliability
+
+### The Solution
+
+A production-ready pipeline that:
+1. **Extracts** clinical features from documents using GPT-4o/Gemini
+2. **Validates** and repairs extracted data with confidence scoring
+3. **Normalizes** features to model-ready format
+4. **Predicts** treatment duration using a trained Decision Tree classifier
+5. **Returns** comprehensive results with full transparency
+
+---
+
+## ✨ Features
+
+### 🤖 **LLM-Powered Extraction**
+- Multi-provider support (OpenAI GPT-4o, Google Gemini)
+- Automatic retry and fallback mechanisms
+- Few-shot learning with 7+ clinical examples
+- Confidence scoring for each extracted field
+
+### 📄 **Multi-Format Document Support**
+- PDF parsing with page-by-page processing
+- DOCX/DOC document support
+- TXT/MD file support
+- File size validation (10MB limit)
+
+### 🔍 **Multi-Case Study Detection** (NEW!)
+- Automatically detects single or multiple case studies in one document
+- Intelligent case boundary detection
+- Processes each case independently
+- Returns predictions for all detected cases
+
+### 🛡️ **Robust Validation & Repair**
+- JSON response validation and auto-repair
+- Evidence-based extraction verification
+- Range validation (age: 0-120, dosage: 0-10g)
+- Unit conversion validation (mg → g)
+- Confidence thresholds with human review flags
+
+### 🎯 **ML Prediction**
+- Trained Decision Tree Classifier (77.84% accuracy)
+- Predicts: `<5 days`, `5-10 days`, `>10 days`
+- Probability scores for each class
+- Model metadata and timing information
+
+### 🌐 **Full-Stack Application**
+- **Backend**: FastAPI with async support
+- **Frontend**: React + TypeScript with modern UI
+- **File Upload**: Drag-and-drop interface
+- **Results**: Comprehensive visualization with validation messages
+
+---
+
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (React)                        │
+│  • File Upload  • Results Display  • Validation UI         │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTP/JSON
+┌─────────────────────────▼───────────────────────────────────┐
+│                  FastAPI Backend                            │
+│  • /predict           - Single case prediction              │
+│  • /predict-from-file - Multi-case document processing      │
+│  • /health            - Health check                        │
+└─────┬─────────────────────────────────────────────┬─────────┘
+      │                                             │
+      ▼                                             ▼
+┌─────────────────┐                    ┌──────────────────────┐
+│  LLM Extraction │                    │  ML Inference        │
+│  • OpenAI GPT   │                    │  • Decision Tree     │
+│  • Gemini       │                    │  • Probability       │
+│  • Fallback     │                    │  • Metadata          │
+└─────┬───────────┘                    └──────────────────────┘
+      │
+      ▼
+┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
+│   Validation    │───▶│ Normalization │───▶│   Prediction    │
+│   & Repair      │    │  (8 Features) │    │   (3 Classes)   │
+└─────────────────┘    └──────────────┘    └─────────────────┘
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.9+
+- Node.js 16+ (for frontend)
+- OpenAI API key OR Google AI API key
+
+### 1. Clone & Setup
+
+```bash
+git clone https://github.com/yourusername/Hospital_Details_Analysis.git
+cd Hospital_Details_Analysis
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and add your API keys
+# OPENAI_API_KEY=sk-...
+# GOOGLE_API_KEY=...
+```
+
+### 2. Install Dependencies
+
+```bash
+# Backend
+pip install -r requirements.txt
+
+# Frontend
+cd frontend
+npm install
+cd ..
+```
+
+### 3. Run the Application
+
+**Terminal 1 - Backend:**
+```bash
+python -m uvicorn src.api.main:app --reload
+# API available at http://localhost:8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+# UI available at http://localhost:5173
+```
+
+### 4. Test with Sample Documents
+
+Upload `Case_Document.pdf` or `Case_Document_1.pdf` through the web interface!
+
+---
+
+## 📦 Installation
+
+### Detailed Backend Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Verify installation
+python -c "import fastapi; import openai; print('Setup successful!')"
+```
+
+### Frontend Setup
+
+```bash
+cd frontend
+npm install
+
+# Development build
+npm run dev
+
+# Production build
+npm run build
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables (`.env`)
+
+#### Required API Keys
+
+```bash
+# Get from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-proj-...
+
+# Get from: https://makersuite.google.com/app/apikey
+GOOGLE_API_KEY=AIza...
+```
+
+#### Model Configuration
+
+```bash
+# Primary provider (openai or gemini)
+PRIMARY_LLM_PROVIDER=openai
+
+# Model selection
+# Options: gpt-4o (recommended), o1, o1-preview, gpt-4-turbo
+OPENAI_MODEL=gpt-4o
+
+# Temperature (0.0 = deterministic, 2.0 = creative)
+OPENAI_TEMPERATURE=0.0
+```
+
+#### Optional Settings
+
+```bash
+# Decision Tree model path
+MODEL_PATH=best_dt_classifier_model.joblib
+
+# API server
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# Caching
+REDIS_URL=redis://localhost:6379/0
+CACHE_TTL_HOURS=24
+```
+
+For all options, see [`.env.example`](.env.example)
+
+---
+
+## 💻 Usage
+
+### Web Interface (Recommended)
+
+1. Start backend and frontend (see Quick Start)
+2. Open http://localhost:5173
+3. Drag & drop a PDF/DOCX file
+4. View extracted features and predictions
+
+### API Usage
+
+#### Single Case Study
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "case_study_text": "A 52-year-old male patient was admitted with pneumonia. Started on IV ceftriaxone 1g once daily."
+  }'
+```
+
+#### Multi-Case Document Upload
+
+```bash
+curl -X POST http://localhost:8000/predict-from-file \
+  -F "file=@Case_Document.pdf"
+```
+
+#### Python SDK
+
+```python
+import requests
+
+# Single case prediction
+response = requests.post(
+    "http://localhost:8000/predict",
+    json={"case_study_text": "Patient is 45yo F with UTI. Given ciprofloxacin 500mg PO BD."}
+)
+result = response.json()
+print(f"Prediction: {result['prediction']}")
+print(f"Confidence: {result['confidence']}")
+
+# Multi-case file upload
+with open("Case_Document.pdf", "rb") as f:
+    response = requests.post(
+        "http://localhost:8000/predict-from-file",
+        files={"file": f}
+    )
+cases = response.json()
+print(f"Detected {len(cases)} case studies")
+```
+
+---
+
+## 📚 API Documentation
+
+### Interactive API Docs
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### Endpoints
+
+#### `POST /predict`
+
+Single case study prediction from text.
+
+**Request:**
+```json
+{
+  "case_study_text": "Patient is a 62-year-old male..."
+}
+```
+
+**Response:**
+```json
+{
+  "prediction": "5-10 days",
+  "confidence": 0.85,
+  "probabilities": {
+    "<5 days": 0.10,
+    "5-10 days": 0.85,
+    ">10 days": 0.05
+  },
+  "extracted_features": {
+    "age": {"value": 62.0, "confidence": 1.0, "evidence": "62-year-old male"},
+    "dosage": {"value": 1.0, "confidence": 1.0, "unit_conversion": "1g → 1.0g"},
+    ...
+  },
+  "normalized_features": {
+    "Age": 62.0,
+    "Dosage (gram)": 1.0,
+    "Gender_Male": 1,
+    ...
+  },
+  "validation_messages": [...],
+  "requires_human_review": false,
+  "extraction_method": "llm",
+  "inference_time_ms": 245.3,
+  "model_version": "1.0"
+}
+```
+
+#### `POST /predict-from-file`
+
+Multi-case document processing.
+
+**Request:**
+- Form data with file upload
+- Supports: PDF, DOCX, DOC, TXT, MD
+- Max size: 10MB
+
+**Response:**
+```json
+[
+  {
+    "prediction": "5-10 days",
+    "confidence": 0.85,
+    ...
+    // Same structure as /predict response
+  },
+  {
+    "prediction": "<5 days",
+    "confidence": 0.92,
+    ...
+  }
+]
+```
+
+#### `GET /health`
+
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "llm_available": true
+}
+```
+
+---
+
+## 📁 Project Structure
+
+```
+Hospital_Details_Analysis/
+├── src/
+│   ├── api/
+│   │   └── main.py              # FastAPI application
+│   ├── models/
+│   │   └── schema.py            # Pydantic data models
+│   ├── services/
+│   │   ├── prompts.py           # Single-case LLM prompts (UPDATED)
+│   │   ├── multi_case_prompts.py # Multi-case prompts (FIXED)
+│   │   ├── extractor.py         # LLM extraction service
+│   │   ├── llm_validator.py     # Response validation
+│   │   ├── normalizer.py        # Feature normalization
+│   │   ├── inference.py         # ML model inference
+│   │   └── fallback_extractor.py # Regex-based fallback
+│   ├── utils/
+│   │   └── file_parser.py       # Document parsing
+│   └── config.py                # Configuration management
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx              # React application
+│   │   └── ...
+│   ├── package.json
+│   └── vite.config.ts
+├── tests/
+│   ├── test_inference.py
+│   ├── test_normalizer.py
+│   └── ...
+├── best_dt_classifier_model.joblib  # Trained ML model
+├── .env.example                 # Environment template (UPDATED)
+├── .gitignore
+├── requirements.txt
+├── README.md                    # This file
+├── CHANGELOG.md                 # Version history (NEW)
+└── CONTRIBUTING.md              # Contribution guide (NEW)
+```
+
+---
+
+## 🆕 Recent Updates
+
+### Version 2.0.0 (January 2026)
+
+#### 🎉 **Multi-Case Detection Fixed**
+- Fixed critical bug preventing detection of multiple case studies
+- Updated prompt format to use `{"cases": [...]}` structure
+- Now correctly handles both single and multiple case documents
+
+#### 🚀 **Enhanced LLM Prompts**
+- Improved confidence scoring with 6 detailed tiers
+- Added 2 new examples (sparse info, complex abbreviations)
+- Enhanced edge case handling (vague ages, missing units)
+- Better medical abbreviation support
+
+#### ⚙️ **Configuration Improvements**
+- Model selection via environment variables
+- Support for latest GPT models (gpt-4o, o1, o1-preview)
+- Enhanced `.env.example` with detailed comments
+
+#### 🐛 **Bug Fixes**
+- Fixed route/frequency confusion in multi-case prompt
+- Removed incorrect unit_conversion from non-dosage fields
+- Standardized value formats (IV, OD, BD, TDS, QID)
+
+See [CHANGELOG.md](CHANGELOG.md) for complete history.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Quick Contribution Guide
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Install dev dependencies
+pip install -r requirements-dev.txt  # (if available)
+
+# Run tests
+pytest tests/
+
+# Run linting
+flake8 src/
+black src/
+```
+
+---
+
+## 📊 Model Details
+
+### Decision Tree Classifier
+
+- **Accuracy**: 77.84%
+- **Features**: 8 (Age, Dosage, Gender, Route, Frequency)
+- **Classes**: 3 (`<5 days`, `5-10 days`, `>10 days`)
+- **Training**: GridSearchCV with 5-fold CV
+- **Optimization**: Weighted F1-score
+
+### Input Features
+
+1. **Age** (float): Patient age in years
+2. **Dosage (gram)** (float): Medication dosage in grams
+3. **Gender_Male** (int): 1=Male, 0=Female
+4. **Route_IV** (int): 1=Intravenous, 0=Other
+5. **Route_Oral** (int): 1=Oral, 0=Other
+6. **Frequency_OD** (int): 1=Once daily, 0=Other
+7. **Frequency_QID** (int): 1=Four times daily, 0=Other
+8. **Frequency_TDS** (int): 1=Three times daily, 0=Other
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**1. "LLM extraction service not available"**
+- ✅ Check API keys in `.env` file
+- ✅ Verify internet connection
+- ✅ Ensure OpenAI/Google API quota is available
+
+**2. "Model not found"**
+- ✅ Verify `best_dt_classifier_model.joblib` exists in root directory
+- ✅ Check `MODEL_PATH` in `.env`
+
+**3. "Only detecting 1 case when there are multiple"**
+- ✅ Update to latest version (includes multi-case fix)
+- ✅ Restart the server after updating
+
+**4. Frontend won't start**
+- ✅ Run `npm install` in frontend directory
+- ✅ Check Node.js version (16+ required)
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👥 Authors & Acknowledgments
+
+- **Development Team**: Hospital Details Analysis Contributors
+- **LLM Integration**: OpenAI GPT-4o, Google Gemini
+- **ML Framework**: Scikit-learn
+- **Web Framework**: FastAPI, React
+
+---
+
+## 📞 Support
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/Hospital_Details_Analysis/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/yourusername/Hospital_Details_Analysis/discussions)
+- 📧 **Email**: your-email@example.com
+
+---
+
+## 🔮 Roadmap
+
+- [ ] Support for more document formats (RTF, HTML)
+- [ ] Real-time collaborative editing
+- [ ] Custom model training interface
+- [ ] Export to EHR systems (HL7, FHIR)
+- [ ] Multi-language support
+- [ ] Mobile application
+
+---
+
+**⭐ If you find this project useful, please star it on GitHub!**
+
+---
+
+*Last Updated: January 2026*
+*Version: 2.0.0*

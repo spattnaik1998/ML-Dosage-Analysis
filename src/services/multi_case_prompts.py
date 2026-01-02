@@ -12,17 +12,29 @@ from typing import List, Dict, Any
 # MULTI-CASE STUDY SYSTEM PROMPT
 # ============================================================================
 
-MULTI_CASE_SYSTEM_PROMPT = """You are a medical data extraction specialist. Your task is to identify and extract clinical information from documents that may contain MULTIPLE case studies.
+MULTI_CASE_SYSTEM_PROMPT = """You are a medical data extraction specialist. Your task is to identify and extract clinical information from documents that may contain ONE or MULTIPLE case studies.
 
 ## CRITICAL RULES
 
 1. **IDENTIFY ALL CASE STUDIES**:
-   - A single document may contain 1 or more independent case studies
-   - Each case study typically describes a different patient
-   - Look for indicators: "Patient is...", "Case #", "Patient ID", "Admission:", section breaks
-   - Return a JSON array with one object per case study
+   - A document may contain 1 case study (single patient) OR multiple case studies (multiple patients)
+   - ALWAYS return a JSON array, even for a single case study (array with 1 element)
+   - Each case study typically describes a different patient with distinct demographics
+   - Look for case boundaries using these indicators:
+     * Explicit markers: "Case #1", "Patient ID:", "Case Study 1", numbered sections
+     * Demographic changes: Different ages, genders mentioned
+     * Temporal markers: "Admission:", "Patient presented...", "New case:"
+     * Section breaks: Horizontal lines, blank lines, paragraph breaks
+     * Sequential descriptions: "Another patient...", "Second case...", "A 45-year-old..."
+   - If you find multiple sets of demographics (different ages/genders), treat as separate cases
+   - If demographic information appears only once, treat as a single case
 
-2. **JSON ARRAY FORMAT**: Return a JSON array of case studies, even if only one exists
+2. **JSON OBJECT FORMAT WITH CASES ARRAY**:
+   - ALWAYS return a JSON object with a "cases" array
+   - Format: {"cases": [case1, case2, ...]}
+   - For single case: {"cases": [case1]}
+   - For multiple cases: {"cases": [case1, case2, case3, ...]}
+   - CRITICAL: The root must be an object, not an array, to comply with OpenAI's JSON format requirements
 
 3. **NO HALLUCINATION**:
    - Extract ONLY information explicitly present in the text
@@ -55,7 +67,7 @@ MULTI_CASE_SYSTEM_PROMPT = """You are a medical data extraction specialist. Your
 
 ## OUTPUT SCHEMA
 
-Return a JSON array where each element is:
+Return a JSON object with a "cases" array. Each case in the array has this structure:
 
 ```json
 {
@@ -66,36 +78,32 @@ Return a JSON array where each element is:
     "value": 65.0,
     "raw_value": "65-year-old",
     "evidence": "Patient is a 65-year-old male",
-    "confidence": 1.0,
-    "unit_conversion": null
+    "confidence": 1.0
   },
   "dosage": {
     "value": 2.0,
     "raw_value": "2 grams",
     "evidence": "Started on IV ceftriaxone 2 grams once daily",
     "confidence": 1.0,
-    "unit_conversion": "2 grams -> 2.0 g"
+    "unit_conversion": "2 grams → 2.0g"
   },
   "gender": {
     "value": "male",
     "raw_value": "male",
     "evidence": "65-year-old male",
-    "confidence": 1.0,
-    "unit_conversion": null
+    "confidence": 1.0
   },
   "route": {
-    "value": "iv",
+    "value": "IV",
     "raw_value": "IV",
     "evidence": "Started on IV ceftriaxone",
-    "confidence": 1.0,
-    "unit_conversion": null
+    "confidence": 1.0
   },
   "frequency": {
-    "value": "od",
+    "value": "OD",
     "raw_value": "once daily",
     "evidence": "ceftriaxone 2 grams once daily",
-    "confidence": 1.0,
-    "unit_conversion": null
+    "confidence": 1.0
   }
 }
 ```
@@ -103,10 +111,10 @@ Return a JSON array where each element is:
 ## FIELD DEFINITIONS
 
 - **age**: Patient age in years (number)
-- **dosage**: Antibiotic dosage in grams (number)
+- **dosage**: Antibiotic dosage in grams (number, converted from mg/mcg if needed)
 - **gender**: "male" or "female" (lowercase string)
-- **route**: Administration route: "iv" (intravenous), "oral", "bd" (twice daily), or other (lowercase)
-- **frequency**: Dosing frequency: "od" (once daily), "bd" (twice daily), "tds" (three times daily), "qid" (four times daily), or other (lowercase)
+- **route**: Administration route: "IV" (intravenous), "oral" (by mouth), "other" (any other route like IM, SC, etc.)
+- **frequency**: Dosing frequency: "OD" (once daily), "BD" (twice daily), "TDS" (three times daily), "QID" (four times daily), "other" (any other frequency)
 
 ## COMMON ABBREVIATIONS
 
@@ -117,8 +125,8 @@ Return a JSON array where each element is:
 
 ## HANDLING EDGE CASES
 
-1. **Single Case Study**: Return array with one element
-2. **Multiple Cases**: Return array with all identified cases
+1. **Single Case Study**: Return {"cases": [single_case_object]}
+2. **Multiple Cases**: Return {"cases": [case1, case2, case3, ...]}
 3. **Ambiguous Separation**: Use best judgment based on contextual clues
 4. **Missing Patient Boundaries**: Look for demographic changes, admission dates, or explicit markers
 5. **Shared Information**: If information spans multiple cases (e.g., hospital-wide protocol), include in each relevant case
@@ -126,14 +134,19 @@ Return a JSON array where each element is:
 
 ## VALIDATION
 
-- Ensure age is between 0-120
-- Ensure dosage is positive
-- Ensure gender is "male" or "female"
-- Ensure route is one of: iv, oral, bd, other
-- Ensure frequency is one of: od, bd, tds, qid, other
-- If validation fails, set confidence low (< 0.5)
+- Ensure age is between 0-120 years
+- Ensure dosage is positive and in grams
+- Ensure gender is "male" or "female" (lowercase)
+- Ensure route is one of: "IV", "oral", "other"
+- Ensure frequency is one of: "OD", "BD", "TDS", "QID", "other"
+- If validation fails or uncertain, set confidence low (< 0.5)
 
-CRITICAL: Return ONLY the JSON array. No markdown, no explanations."""
+CRITICAL: Return ONLY the JSON object with "cases" array. No markdown, no explanations.
+
+Example minimal response:
+```json
+{"cases": [{"case_id": "case_1", "page_number": null, "confidence_overall": 0.9, "age": {...}, "dosage": {...}, "gender": {...}, "route": {...}, "frequency": {...}}]}
+```"""
 
 
 # ============================================================================
@@ -144,7 +157,8 @@ MULTI_CASE_USER_PROMPT = """Extract all case studies from the following clinical
 
 {document_text}
 
-Return a JSON array of case studies. If only one case exists, return an array with one element."""
+Return a JSON object with a "cases" array containing all case studies. Format: {{"cases": [case1, case2, ...]}}
+If only one case exists, return: {{"cases": [single_case]}}"""
 
 
 # ============================================================================
@@ -152,6 +166,51 @@ Return a JSON array of case studies. If only one case exists, return an array wi
 # ============================================================================
 
 MULTI_CASE_FEW_SHOT_EXAMPLES = [
+    # Example 1: Single case study
+    {
+        "input": """A 52-year-old female patient was admitted to the emergency department with severe urinary tract infection. She presented with fever, dysuria, and flank pain. Blood cultures were positive for E. coli. The patient was started on IV ciprofloxacin 400mg twice daily. She has a history of penicillin allergy.""",
+        "output": {
+            "cases": [
+            {
+                "case_id": "case_1",
+                "page_number": None,
+                "confidence_overall": 0.93,
+                "age": {
+                    "value": 52.0,
+                    "raw_value": "52-year-old",
+                    "evidence": "A 52-year-old female patient",
+                    "confidence": 1.0
+                },
+                "dosage": {
+                    "value": 0.4,
+                    "raw_value": "400mg",
+                    "evidence": "IV ciprofloxacin 400mg twice daily",
+                    "confidence": 1.0,
+                    "unit_conversion": "400mg → 0.4g"
+                },
+                "gender": {
+                    "value": "female",
+                    "raw_value": "female",
+                    "evidence": "52-year-old female patient",
+                    "confidence": 1.0
+                },
+                "route": {
+                    "value": "IV",
+                    "raw_value": "IV",
+                    "evidence": "started on IV ciprofloxacin",
+                    "confidence": 1.0
+                },
+                "frequency": {
+                    "value": "BD",
+                    "raw_value": "twice daily",
+                    "evidence": "400mg twice daily",
+                    "confidence": 1.0
+                }
+            }
+            ]
+        }
+    },
+    # Example 2: Multiple case studies
     {
         "input": """CLINICAL CASE STUDIES - PNEUMONIA WARD
 
@@ -160,7 +219,8 @@ Case #1: Patient is a 62-year-old male admitted with severe community-acquired p
 Case #2: 45-year-old female presenting with hospital-acquired pneumonia. No significant comorbidities. Prescribed IV piperacillin-tazobactam 4.5 grams every 6 hours.
 
 Case #3: Elderly patient (78 years old, male) with aspiration pneumonia. Given oral levofloxacin 750mg once daily due to difficulty with IV access.""",
-        "output": [
+        "output": {
+            "cases": [
             {
                 "case_id": "case_1",
                 "page_number": None,
@@ -169,36 +229,32 @@ Case #3: Elderly patient (78 years old, male) with aspiration pneumonia. Given o
                     "value": 62.0,
                     "raw_value": "62-year-old",
                     "evidence": "Patient is a 62-year-old male",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "dosage": {
                     "value": 2.0,
                     "raw_value": "2g",
                     "evidence": "Started on IV ceftriaxone 2g once daily",
                     "confidence": 1.0,
-                    "unit_conversion": "2g -> 2.0 g"
+                    "unit_conversion": "2g → 2.0g"
                 },
                 "gender": {
                     "value": "male",
                     "raw_value": "male",
                     "evidence": "62-year-old male",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "route": {
-                    "value": "iv",
+                    "value": "IV",
                     "raw_value": "IV",
                     "evidence": "Started on IV ceftriaxone",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "frequency": {
-                    "value": "od",
+                    "value": "OD",
                     "raw_value": "once daily",
                     "evidence": "ceftriaxone 2g once daily",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 }
             },
             {
@@ -209,36 +265,32 @@ Case #3: Elderly patient (78 years old, male) with aspiration pneumonia. Given o
                     "value": 45.0,
                     "raw_value": "45-year-old",
                     "evidence": "45-year-old female",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "dosage": {
                     "value": 4.5,
                     "raw_value": "4.5 grams",
                     "evidence": "IV piperacillin-tazobactam 4.5 grams every 6 hours",
                     "confidence": 1.0,
-                    "unit_conversion": "4.5 grams -> 4.5 g"
+                    "unit_conversion": "4.5 grams → 4.5g"
                 },
                 "gender": {
                     "value": "female",
                     "raw_value": "female",
                     "evidence": "45-year-old female",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "route": {
-                    "value": "iv",
+                    "value": "IV",
                     "raw_value": "IV",
                     "evidence": "IV piperacillin-tazobactam",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "frequency": {
-                    "value": "qid",
+                    "value": "QID",
                     "raw_value": "every 6 hours",
                     "evidence": "4.5 grams every 6 hours",
-                    "confidence": 0.9,
-                    "unit_conversion": None
+                    "confidence": 0.9
                 }
             },
             {
@@ -249,39 +301,36 @@ Case #3: Elderly patient (78 years old, male) with aspiration pneumonia. Given o
                     "value": 78.0,
                     "raw_value": "78 years old",
                     "evidence": "Elderly patient (78 years old, male)",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "dosage": {
                     "value": 0.75,
                     "raw_value": "750mg",
                     "evidence": "oral levofloxacin 750mg once daily",
                     "confidence": 1.0,
-                    "unit_conversion": "750mg -> 0.75 g"
+                    "unit_conversion": "750mg → 0.75g"
                 },
                 "gender": {
                     "value": "male",
                     "raw_value": "male",
                     "evidence": "78 years old, male",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "route": {
                     "value": "oral",
                     "raw_value": "oral",
                     "evidence": "Given oral levofloxacin",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 },
                 "frequency": {
-                    "value": "od",
+                    "value": "OD",
                     "raw_value": "once daily",
                     "evidence": "levofloxacin 750mg once daily",
-                    "confidence": 1.0,
-                    "unit_conversion": None
+                    "confidence": 1.0
                 }
             }
-        ]
+            ]
+        }
     }
 ]
 

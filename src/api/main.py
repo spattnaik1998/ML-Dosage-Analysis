@@ -471,9 +471,11 @@ async def predict_from_file(file: UploadFile = File(...)):
                 model=settings.openai_model,
                 messages=messages,
                 temperature=0.0,
-                response_format={"type": "json_object"}  # Note: Will return object, we'll parse array
+                response_format={"type": "json_object"},  # Expects {"cases": [...]} format
+                max_tokens=4000  # Increased for multiple cases
             )
             result_text = response.choices[0].message.content
+            print(f"[DEBUG] OpenAI returned {len(result_text)} characters")
         else:  # gemini
             prompt = MultiCasePromptBuilder.build_gemini_prompt(document_text)
             response = llm_extractor._gemini_model.generate_content(
@@ -482,17 +484,34 @@ async def predict_from_file(file: UploadFile = File(...)):
             )
             result_text = response.text
 
-        # Parse JSON array
+        # Parse JSON response - expecting {"cases": [...]} format
         try:
-            # Handle both array and object responses
             parsed = json.loads(result_text)
-            if isinstance(parsed, dict):
-                # If single object, wrap in array
-                case_studies = [parsed]
+
+            # Handle new format with "cases" array
+            if isinstance(parsed, dict) and "cases" in parsed:
+                case_studies = parsed["cases"]
+                if not isinstance(case_studies, list):
+                    raise ValueError("'cases' field must be an array")
+            # Fallback: handle legacy array format
             elif isinstance(parsed, list):
                 case_studies = parsed
+            # Fallback: single object wrapped as array
+            elif isinstance(parsed, dict):
+                case_studies = [parsed]
             else:
-                raise ValueError("Unexpected response format")
+                raise ValueError(f"Unexpected response format. Got type: {type(parsed)}")
+
+            # Validate we got at least one case
+            if not case_studies:
+                raise ValueError("No case studies found in response")
+
+            # Debug logging
+            print(f"[SUCCESS] Detected {len(case_studies)} case study/studies")
+            for idx, case in enumerate(case_studies, 1):
+                case_id = case.get("case_id", f"unknown_{idx}")
+                print(f"  - Case {idx}: {case_id}")
+
         except json.JSONDecodeError as e:
             raise HTTPException(
                 status_code=500,

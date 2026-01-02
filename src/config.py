@@ -44,8 +44,8 @@ class Settings(BaseSettings):
 
     # OpenAI Configuration
     openai_model: str = Field(
-        "gpt-4o",
-        description="OpenAI model name"
+        default="gpt-4o",
+        description="OpenAI model name (gpt-4o, o1, o1-preview, etc.)"
     )
     openai_temperature: float = Field(
         0.0,
