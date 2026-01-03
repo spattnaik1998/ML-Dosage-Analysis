@@ -46,7 +46,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Professional Hospital Header */}
       <header className="hospital-header sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -58,16 +58,16 @@ function App() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-display font-bold text-hospital-900">Clinical ML Decision Support</h1>
-                <p className="text-sm text-gray-600">Antibiotic Treatment Duration Prediction System</p>
+                <h1 className="text-2xl font-display font-bold text-white">Clinical ML Decision Support</h1>
+                <p className="text-sm text-gray-300">Antibiotic Treatment Duration Prediction System</p>
               </div>
             </div>
 
             <div className="hidden md:flex items-center gap-3">
-              <div className="px-4 py-2 bg-medical-50 border border-medical-200 rounded-lg">
+              <div className="px-4 py-2 bg-hospital-600 border border-hospital-500 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-medical-600 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium text-medical-800">System Active</span>
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-white">System Active</span>
                 </div>
               </div>
             </div>
@@ -78,15 +78,15 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Information Banner */}
-        <div className="mb-8 bg-gradient-to-r from-hospital-50 to-blue-50 border-l-4 border-hospital-600 rounded-lg p-6 shadow-sm">
+        <div className="mb-8 bg-gradient-to-r from-hospital-50 to-gray-50 border-l-4 border-hospital-600 rounded-lg p-6 shadow-sm">
           <div className="flex gap-4">
             <div className="flex-shrink-0">
-              <svg className="w-6 h-6 text-hospital-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-hospital-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div className="flex-1">
-              <h3 className="text-base font-semibold text-hospital-900 mb-2">How It Works</h3>
+              <h3 className="text-base font-semibold text-medical-900 mb-2">How It Works</h3>
               <ul className="text-sm text-gray-700 space-y-1">
                 <li className="flex items-start gap-2">
                   <span className="text-hospital-600 font-bold">1.</span>
@@ -135,17 +135,17 @@ function App() {
         {results && results.length > 0 && !isLoading && (
           <div className="space-y-8">
             {/* Summary Header */}
-            <div className="card bg-gradient-to-r from-hospital-600 to-hospital-800 text-white">
+            <div className="card bg-gradient-to-r from-hospital-700 to-medical-900 text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-display font-bold mb-2">Analysis Complete</h2>
-                  <p className="text-hospital-100">
+                  <p className="text-gray-200">
                     {results.length} case {results.length === 1 ? 'study' : 'studies'} processed from document
                   </p>
                 </div>
                 <div className="text-right">
                   <div className="text-4xl font-display font-bold">{results.length}</div>
-                  <div className="text-sm text-hospital-200">Case Studies</div>
+                  <div className="text-sm text-gray-300">Case Studies</div>
                 </div>
               </div>
             </div>
@@ -218,7 +218,7 @@ function App() {
         {!results && !isLoading && !error && (
           <div className="text-center py-16">
             <div className="w-20 h-20 bg-hospital-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-hospital-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-10 h-10 text-hospital-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
             </div>
@@ -231,11 +231,11 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-16 border-t border-gray-200 bg-white">
+      <footer className="mt-16 border-t border-gray-300 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
             <div>
-              <h4 className="font-semibold text-hospital-900 mb-3">Pipeline Stages</h4>
+              <h4 className="font-semibold text-medical-900 mb-3">Pipeline Stages</h4>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-hospital-600 rounded-full"></div>
@@ -257,29 +257,29 @@ function App() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-hospital-900 mb-3">Supported Formats</h4>
+              <h4 className="font-semibold text-medical-900 mb-3">Supported Formats</h4>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-medical-600 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-hospital-700 rounded-full"></div>
                   PDF Documents (.pdf)
                 </li>
                 <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-medical-600 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-hospital-700 rounded-full"></div>
                   Word Documents (.docx, .doc)
                 </li>
                 <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-medical-600 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-hospital-700 rounded-full"></div>
                   Text Files (.txt, .md)
                 </li>
                 <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-medical-600 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-hospital-700 rounded-full"></div>
                   Multi-case Documents
                 </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-semibold text-hospital-900 mb-3">Model Information</h4>
+              <h4 className="font-semibold text-medical-900 mb-3">Model Information</h4>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li>Decision Tree Classifier</li>
                 <li>8 Clinical Features</li>

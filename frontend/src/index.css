@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-100 text-gray-900 antialiased;
     font-feature-settings: "liga" 1, "calt" 1;
   }
 
@@ -57,10 +57,10 @@
   }
 
   .medical-gradient {
-    @apply bg-gradient-to-br from-hospital-600 via-hospital-700 to-hospital-900;
+    @apply bg-gradient-to-br from-hospital-600 via-hospital-800 to-medical-900;
   }
 
   .hospital-header {
-    @apply bg-white border-b border-gray-100 shadow-sm;
+    @apply bg-medical-900 border-b border-medical-700 shadow-lg;
   }
 }

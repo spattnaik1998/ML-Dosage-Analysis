@@ -36,7 +36,7 @@ export default function NormalizedFeatures({ features }: NormalizedFeaturesProps
     <div className="card">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between card-header cursor-pointer hover:text-clinical-600 transition-colors"
+        className="w-full flex items-center justify-between card-header cursor-pointer hover:text-hospital-600 transition-colors"
       >
         <div className="flex items-center gap-3">
           <span>Normalized Model Input</span>
@@ -67,7 +67,7 @@ export default function NormalizedFeatures({ features }: NormalizedFeaturesProps
                 {isBinaryFeature(name) && (
                   <div className={`w-3 h-3 rounded-full ${value === 1 ? 'bg-green-500' : 'bg-gray-300'}`} />
                 )}
-                <span className={`font-mono font-semibold ${isBinaryFeature(name) ? 'text-gray-600' : 'text-clinical-700'}`}>
+                <span className={`font-mono font-semibold ${isBinaryFeature(name) ? 'text-gray-600' : 'text-hospital-700'}`}>
                   {formatValue(name, value)}
                 </span>
               </div>

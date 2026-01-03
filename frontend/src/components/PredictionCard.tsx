@@ -63,7 +63,7 @@ export default function PredictionCard({ result }: PredictionCardProps) {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-clinical-600 h-2 rounded-full transition-all duration-500"
+                      className="bg-hospital-600 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${probability * 100}%` }}
                     />
                   </div>

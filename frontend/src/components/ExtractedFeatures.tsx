@@ -30,7 +30,7 @@ export default function ExtractedFeatures({ features, extractionMethod }: Extrac
     <div className="card">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between card-header cursor-pointer hover:text-clinical-600 transition-colors"
+        className="w-full flex items-center justify-between card-header cursor-pointer hover:text-hospital-600 transition-colors"
       >
         <div className="flex items-center gap-3">
           <span>Extracted Features</span>
